@@ -139,7 +139,7 @@ class Vssc::ElectionReport < ActiveRecord::Base
     
     j.districts.each do |d|
       district = Vssc::District.new
-      district.district_type = d.vssc_type
+      district.district_type = d.vssc_district_type
       
       d.reporting_units.each do |ru|
         district.gp_sub_unit_refs << Vssc::GPSubUnitRef.new(object_id: ru.object_id)

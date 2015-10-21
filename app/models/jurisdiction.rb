@@ -196,7 +196,11 @@ class Jurisdiction < ActiveRecord::Base
     # handle enclosings
     enclosings.each do |ru, d_internal_ids|
       d_internal_ids.uniq.each do |d_id|
-        ru.districts << districts[d_id]
+        if districts[d_id]
+          ru.districts << districts[d_id]
+        else
+          raise d_id.to_s
+        end
       end
     end
     
