@@ -1,0 +1,2 @@
+module Vedastore
+end
