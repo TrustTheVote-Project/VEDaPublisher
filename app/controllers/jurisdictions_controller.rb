@@ -37,14 +37,14 @@ class JurisdictionsController < ApplicationController
     
   end
   
-  def vssc_export
-    render xml: Jurisdiction.find(params[:id]).to_vssc_xml.to_xml
+  def vedastore_export
+    render xml: Jurisdiction.find(params[:id]).to_ved_xml.to_xml
   end
   
 private
     def jurisdiction_params
       params.require(:jurisdiction).permit(:name, :state, :contact_info, 
-      :background_csv, :background_vip, :vssc_election_report, 
+      :background_csv, :background_vip, :vedastore_election_report, 
       :selected_source_for_hart, :hart_election_report,
       :selected_source_for_reporting_unit_kml, :reporting_unit_kml)
     end

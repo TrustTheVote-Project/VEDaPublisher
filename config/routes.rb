@@ -2,11 +2,11 @@ Rails.application.routes.draw do
   
   resources :jurisdictions do
     member do 
-      get :vssc_export, format: :xml
+      get :ved_export, format: :xml
     end
   end
   resources :election_result_uploads, only: [:index]
-  namespace :vssc do
+  namespace :ved do
     resources :election_reports, only: [:show, :update, :destroy]
     resources :elections, only: :show
     resources :contests, only: [:show, :edit, :update]

@@ -1,27 +1,27 @@
-class Vssc::ElectionReportsController < ApplicationController
+class Ved::ElectionReportsController < ApplicationController
   
   def show
-    @er = Vssc::ElectionReport.find_with_eager_load(params[:id])
+    @er = Vedastore::ElectionReport.find_with_eager_load(params[:id])
     respond_to do |f|
       f.xml { render text: @er.to_xml_node.to_xml }
     end
   end
   
   def update
-    @er = Vssc::ElectionReport.find(params[:id])
+    @er = Vedastore::ElectionReport.find(params[:id])
     @er.update(election_report_params)
     redirect_to @er.jurisdiction
   end
   
   def destroy
-    @er = Vssc::ElectionReport.find(params[:id])
+    @er = Vedastore::ElectionReport.find(params[:id])
     @er.destroy!
     redirect_to @er.jurisdiction
   end
   
 private
     def election_report_params
-      params.require(:vssc_election_report).permit(:election_results_csv)
+      params.require(:vedastore_election_report).permit(:election_results_csv)
     end
 
 
