@@ -1,6 +1,4 @@
-class Vssc::BallotMeasureSelection < Vssc::BallotSelection
-  define_attribute("selection", {:required=>true})
-  
+class Vedastore::BallotMeasureSelection < Vedastore::BallotSelection
   def name
     selection
   end

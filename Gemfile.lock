@@ -9,10 +9,10 @@ GIT
 
 GIT
   remote: https://github.com/TrustTheVote-Project/VEDaStore
-  revision: cf12ea10ef9bf6180f2e9240e45fc2e43924a15f
+  revision: a491c676d0512eeece04559de67d760d253fe88a
   branch: extract-vedaspace
   specs:
-    vedastore (1.1.0)
+    vedastore (1.1.1)
       nokogiri (~> 1.6.0)
       rails (~> 4.2.1)
       vedaspace (~> 1.1.0)
@@ -245,5 +245,5 @@ DEPENDENCIES
   turbolinks
   uglifier (>= 1.3.0)
   vedaspace (= 1.1.0)!
-  vedastore (= 1.1.0)!
+  vedastore (= 1.1.1)!
   web-console (~> 2.0)

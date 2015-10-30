@@ -37,7 +37,7 @@ gem 'delayed_job_active_record'
 gem "daemons"
 
 gem "vedaspace", "1.1.0", :git=>"https://github.com/TrustTheVote-Project/VEDaSpace"
-gem "vedastore", "1.1.0", :git=>"https://github.com/TrustTheVote-Project/VEDaStore", branch: 'extract-vedaspace'
+gem "vedastore", "1.1.1", :git=>"https://github.com/TrustTheVote-Project/VEDaStore", branch: 'extract-vedaspace'
 
 gem 'passenger'
 # Use ActiveModel has_secure_password

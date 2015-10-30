@@ -1,3 +1,4 @@
+# TODO: do we need this SQL for optimization?
 class Vssc::CandidateSelectionCandidateRef < ActiveRecord::Base
   include VsscFunctions
   
