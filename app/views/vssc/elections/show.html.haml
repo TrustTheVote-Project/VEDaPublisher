@@ -8,6 +8,6 @@
   %ul
     - @election.contests.each do |contest|
       %li
-        = link_to contest.name, vssc_contest_path(contest)
+        = link_to contest.name, ved_contest_path(contest)
         = "in #{contest.contest_gp_scope_object.name}"
   

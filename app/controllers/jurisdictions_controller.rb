@@ -37,7 +37,7 @@ class JurisdictionsController < ApplicationController
     
   end
   
-  def vedastore_export
+  def ved_export
     render xml: Jurisdiction.find(params[:id]).to_ved_xml.to_xml
   end
   

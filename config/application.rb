@@ -33,5 +33,13 @@ module Vspub
     config.active_record.raise_in_transactional_callbacks = true
     config.active_job.queue_adapter = :delayed_job
     config.autoload_paths << Rails.root.join('lib')
+    # config.autoload_paths << Rails.root.join('app/decorators/models/vedastore')
+    
+    config.to_prepare do
+        Dir.glob(Rails.root + "app/decorators/**/*.rb").each do |c|
+            require_dependency(c)
+        end
+    end
+    
   end
 end

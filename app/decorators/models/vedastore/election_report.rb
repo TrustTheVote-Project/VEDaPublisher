@@ -1,5 +1,5 @@
 require 'csv'
-class Vedastore::ElectionReport < ActiveRecord::Base
+Vedastore::ElectionReport.class_eval do
   def self.find_with_eager_load(id)
     e = self.where(id: id).includes([
       {:gp_units=>[
@@ -47,13 +47,13 @@ class Vedastore::ElectionReport < ActiveRecord::Base
     
     batch_size = 10000
     
-    count = Vssc::Count.where(:ballot_selection_id=>ballot_selection_ids).count
+    count = Vedastore::Count.where(:ballot_selection_id=>ballot_selection_ids).count
     puts count
     Rails.logger.debug("#{count} Counts")
     
     ballot_selection_counts = {}
     
-    Vssc::Count.where(:ballot_selection_id=>ballot_selection_ids).find_in_batches(batch_size: batch_size).with_index do |group, batch|
+    Vedastore::Count.where(:ballot_selection_id=>ballot_selection_ids).find_in_batches(batch_size: batch_size).with_index do |group, batch|
       puts "Loading #{batch * batch_size} of #{count}"
       Rails.logger.debug("Loading #{batch * batch_size} of #{count}")
       group.each do |vc|
@@ -98,39 +98,56 @@ class Vedastore::ElectionReport < ActiveRecord::Base
   
   def self.from_jurisdiction(j)
     er = self.new
-    er.object_id = "VSPubJurisdictionReport-#{j.id}-#{DateTime.now}"
-    er.date = DateTime.now
-    er.format = Vssc::ReportFormat.summary_contest
-    er.status = Vssc::ReportFormat.pre_election
+    #er.object_id = "VSPubJurisdictionReport-#{j.id}-#{DateTime.now}"
+    er.generated_date = DateTime.now
+    er.format = Vedaspace::Enum::ReportDetailLevel.summary_contest
+    er.status = Vedaspace::Enum::ResultsStatus.pre_election
     er.issuer = "VSPub-#{j.name}"
-    er.state_abbreviation = j.state_abbreviation
-    er.vendor_application_id = "VSPub-<some-deployment-specific-guid>"
+    er.issuer_abbreviation = j.state_abbreviation
+    er.vendor_application_identifier = "VSPub-<some-deployment-specific-guid>"
     
     j.districts.each do |d|
-      district = Vssc::District.new
-      district.district_type = d.vssc_district_type
+      district = Vedastore::ReportingUnit.new(is_districted: true)
+      district.reporting_unit_type = d.vedastore_district_type
       
       d.reporting_units.each do |ru|
-        district.gp_sub_unit_refs << Vssc::GPSubUnitRef.new(object_id: ru.object_id)
+        district.gp_unit_composing_gp_unit_id_refs << Vedastore::GpUnitComposingGpUnitIdRef.new(composing_gp_unit_id_ref: ru.object_id)
       end
       
       district.object_id = d.object_id
-      district.local_geo_code = d.internal_id
+      
+      district.build_external_identifier_collection
+      district.external_identifier_collection.external_identifiers << Vedastore::ExternalIdentifier.new({
+        value: d.internal_id,
+        identifier_type: Vedaspace::Enum::IdentifierType.local_level
+      })
+      
       district.name = d.name
-      district.national_geo_code = d.ocd_id
+      district.external_identifier_collection.external_identifiers << Vedastore::ExternalIdentifier.new({
+        value: d.ocd_id,
+        identifier_type: Vedaspace::Enum::IdentifierType.ocd_id
+      })
       
       er.gp_units << district
     end
     
     j.reporting_units.each do |ru|
-      reporting_unit = Vssc::ReportingUnit.new
+      reporting_unit = Vedastore::ReportingUnit.new
 
       reporting_unit.object_id = ru.object_id
-      reporting_unit.local_geo_code = ru.internal_id
-      reporting_unit.name = ru.name
-      reporting_unit.national_geo_code = ru.ocd_id
+      reporting_unit.build_external_identifier_collection
+      reporting_unit.external_identifier_collection.external_identifiers << Vedastore::ExternalIdentifier.new({
+        value: ru.internal_id,
+        identifier_type: Vedaspace::Enum::IdentifierType.local_level
+      })
       
-      reporting_unit.reporting_unit_type = Vssc::ReportingUnitType.precinct      
+      reporting_unit.name = ru.name
+      reporting_unit.external_identifier_collection.external_identifiers << Vedastore::ExternalIdentifier.new({
+        value: ru.ocd_id,
+        identifier_type: Vedaspace::Enum::IdentifierType.ocd_id
+      })
+      
+      reporting_unit.reporting_unit_type = Vedaspace::Enum::ReportingUnitType.precinct      
       
       er.gp_units << reporting_unit      
     end

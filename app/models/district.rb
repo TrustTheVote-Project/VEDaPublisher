@@ -12,8 +12,8 @@ class District < ActiveRecord::Base
     "vspub-district-#{self.id}"
   end
   
-  def vssc_district_type
-    Vssc::DistrictType.find(ocd_object.district_type) || Vssc::DistrictType.other
+  def vedastore_district_type
+    Vedaspace::Enum::ReportingUnitType.find(ocd_object.district_type) || Vedaspace::Enum::ReportingUnitType.other
   end
   
   # def vssc_type

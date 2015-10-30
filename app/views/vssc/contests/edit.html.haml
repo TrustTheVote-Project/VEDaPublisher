@@ -3,7 +3,7 @@
     = @contest.name
     in election
     = link_to @contest.election.name, @contest.election
-  = semantic_form_for @contest, url: vssc_contest_path(@contest) do |f|
+  = semantic_form_for @contest, url: ved_contest_path(@contest) do |f|
     = f.inputs do
       = f.input :contest_gp_scope, as: :select, collection: @gp_units.collect{|g| [g.name.presence || g.object_id, g.object_id]}
     = f.actions do

@@ -9,7 +9,7 @@
         = "Jurisdiction Districts (#{@jurisdiction.districts.count}) and Precincts (#{@jurisdiction.reporting_units.count})"
     .panel-body
       .row
-        .col-md-12= link_to "Export Jurisdiction VSSC XML", vssc_export_jurisdiction_path(format: :xml)
+        .col-md-12= link_to "Export Jurisdiction NIST ERR XML", ved_export_jurisdiction_path(format: :xml)
       - if @jurisdiction.background_sources.any?
         - @jurisdiction.background_sources.each do |s|
           .row
@@ -79,7 +79,7 @@
             %td.file_name
               = eru.file_name
               %br
-              = link_to "Delete", vssc_election_report_path(eru.election_report), {method: :delete, confirm: "Are you sure?"}
+              = link_to "Delete", ved_election_report_path(eru.election_report), {method: :delete, confirm: "Are you sure?"}
             %td.date= eru.created_at
             %td.source= eru.source_type
             %td.report
@@ -97,7 +97,7 @@
                 - eru.election_report.elections.each do |e|
                   %li= link_to e.name, e
             %td
-              = link_to "Export Election Report VSSC", vssc_election_report_path(eru.election_report, format: :xml)
+              = link_to "Export Election Report NIST ERR", ved_election_report_path(eru.election_report, format: :xml)
               %br
               Upload Election Results
               = semantic_form_for eru.election_report do |f|
@@ -109,10 +109,10 @@
 
       .row
         .col-md-6
-          %h3 Upload VSSC Election Report
+          %h3 Upload NIST ERR Election Report
           = semantic_form_for @jurisdiction do |f|
             = f.inputs do
-              = f.input :vssc_election_report, as: :file
+              = f.input :vedastore_election_report, as: :file
             = f.actions do
               = f.action :submit, :label=>"Upload"
       

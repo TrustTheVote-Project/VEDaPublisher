@@ -55,7 +55,7 @@ class Jurisdiction < ActiveRecord::Base
   # t.datetime "updated_at",    null: false
   # t.integer  "ocd_object_id" - this is for "parent" levels (maybe unnecessary)
 
-  attr_reader :background_csv, :background_vip, :hart_election_report, :vssc_election_report
+  attr_reader :background_csv, :background_vip, :hart_election_report, :vedastore_election_report
   def background_csv=(file)
     @background_csv=file
     self.load_from_csv(file.read, file.original_filename)
@@ -64,15 +64,15 @@ class Jurisdiction < ActiveRecord::Base
     @background_vip=file
     self.load_from_vip(file.read, file.original_filename)
   end
-  def vssc_election_report=(file)
-    eru = ElectionReportUpload.new(source_type: "VSSC XML", file_name: file.original_filename)
-    eru.election_report = Vssc::ElectionReport.parse_vssc_file(file)
+  def vedastore_election_report=(file)
+    eru = ElectionReportUpload.new(source_type: "NIST ERR XML", file_name: file.original_filename)
+    eru.election_report = Vedastore::ElectionReport.parse_ved_file(file)
     self.election_report_uploads << eru
     self.save!
   end
   def vip_election_report=(file)
     eru = ElectionReportUpload.new(source_type: "VIP XML", file_name: file.original_filename)
-    eru.election_report = Vssc::ElectionReport.parse_vip_file(file)
+    eru.election_report = Vedastore::ElectionReport.parse_vip_file(file)
     self.election_report_uploads << eru
     self.save!
   end
@@ -261,8 +261,8 @@ class Jurisdiction < ActiveRecord::Base
     state ? state.abbreviation : nil
   end
   
-  def to_vssc_xml
-    Vssc::ElectionReport.from_jurisdiction(self).to_xml_node
+  def to_ved_xml
+    Vedastore::ElectionReport.from_jurisdiction(self).to_xml_node
   end
   
 end

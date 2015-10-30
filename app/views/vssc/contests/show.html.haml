@@ -6,8 +6,8 @@
   %h2
     District
     = @contest.contest_gp_scope_object.name
-    = link_to "edit", edit_vssc_contest_path(@contest)
-  - if @contest.is_a?(Vssc::BallotMeasure)
+    = link_to "edit", edit_ved_contest_path(@contest)
+  - if @contest.is_a?(Vedastore::BallotMeasure)
     %h4 Summary
     %h3 Ballot Measure
     %p= @contest.summary_text
