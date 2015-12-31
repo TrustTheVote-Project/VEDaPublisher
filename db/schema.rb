@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20151030162360) do
+ActiveRecord::Schema.define(version: 20151230225140) do
 
   create_table "background_sources", force: :cascade do |t|
     t.string   "name",            limit: 255
@@ -268,6 +268,7 @@ ActiveRecord::Schema.define(version: 20151030162360) do
     t.string   "vote_variation",                limit: 255
     t.datetime "created_at",                                null: false
     t.datetime "updated_at",                                null: false
+    t.string   "info_uri",                      limit: 255
     t.integer  "con_statement_id",              limit: 4
     t.integer  "effect_of_abstain_id",          limit: 4
     t.integer  "full_text_id",                  limit: 4

@@ -11,24 +11,33 @@ module Hart
     
       # build the election report
       jurisdiction = report.jurisdiction
-      election = Vssc::Election.new
-      report.elections << election
+      election = Vedastore::Election.new
+      
+      # general for now
+      election.election_type = Vedaspace::Enum::ElectionType.general
+      
+      report.election = election
     
-      report.object_id = "election-report-#{er.name}"
-      election.object_id = "election-#{er.name}"
-      election.name = er.name
+      #election.object_id = "election-#{er.name}"
+      
+      # TODO: build helper for internationalized text
+      election.name = Vedastore::InternationalizedText.new
+      election_name = Vedastore::LanguageString.new
+      election_name.text = er.name
+      election_name.language = 'en'
+      election.name.language_strings << election_name
     
       report.issuer = er.locality
-      report.sequence = 0
+      report.issuer_abbreviation = er.state_abbreviation
+      report.sequence_start = 0
       report.sequence_end = 0
-      report.vendor_application_id = "OSET-VSSC-RUBY-HART-MAPPER"
-      report.format = er.format == 'Precinct' ? Vssc::ReportFormat.precinct_level : Vssc::ReportFormat.summary_contest
+      report.vendor_application_identifier = "OSET-VEDaPublisher-HART"
+      report.format = er.format == 'Precinct' ? Vedaspace::Enum::ReportDetailLevel.precinct_level : Vedaspace::Enum::ReportDetailLevel.summary_contest
       
       # Hart data is always pre-election
-      report.status = Vssc::ReportStatus.pre_election    
+      report.status = Vedaspace::Enum::ResultsStatus.pre_election    
     
-      report.date = DateTime.iso8601(Date.parse(er.date).iso8601)
-      report.state_abbreviation = er.state_abbreviation
+      report.generated_date = DateTime.now.iso8601 #(Date.parse(er.date).iso8601)
       report.save!
     
       districts = {}
@@ -37,9 +46,18 @@ module Hart
         h
       end
       DMap::ModelRegister.classes[:district].all.values.each do |d|
-        district = Vssc::District.new
+        district = Vedastore::ReportingUnit.new
+        district.is_districted = true
 
-        district.local_geo_code = d.id
+        # TODO: build helper for external ids
+        local_geo_code = Vedastore::ExternalIdentifier.new 
+        local_geo_code.label = 'internal_id'
+        local_geo_code.identifier_type = Vedaspace::Enum::IdentifierType.other #.local_level ?
+        local_geo_code.other_type = "HART internal ID"
+        local_geo_code.value = d.id
+        district.external_identifier_collection = Vedastore::ExternalIdentifierCollection.new
+        district.external_identifier_collection.external_identifiers << local_geo_code
+        
         district.name = d.attributes[:name]
         source_district = source_districts[d.id] #source.districts.where(internal_id: d.id).first
         if source_district.nil?
@@ -47,23 +65,31 @@ module Hart
         end
         
         district.object_id = source_district.object_id
-        district.national_geo_code = source_district.ocd_id
-        district.district_type = source_district.vssc_district_type 
+        
+        ocd_id = Vedastore::ExternalIdentifier.new 
+        ocd_id.identifier_type = Vedaspace::Enum::IdentifierType.ocd_id
+        ocd_id.value = source_district.ocd_id
+        district.external_identifier_collection.external_identifiers << ocd_id
+        
+        district.reporting_unit_type = source_district.vedastore_district_type 
         
         # In this eleciton report, only the used sub-units should get added, 
-        # so don't automatically all of the source-district's reporting units. 
+        # so don't automatically add all of the source-district's reporting units. 
         # Do it according to the Hart election definition
         # source_district.reporting_units.each do |ru|
         #   district.gp_sub_unit_refs << Vssc::GPSubUnitRef.new(object_id: ru.object_id)
         # end
-
+        
+        district.election_report_id = report.id
+        
         districts[district.object_id] = district
       end
-      Vssc::District.import(districts.values)
-      districts = Vssc::District.where(object_id: districts.keys)
-      # Associate with this report
-      values = districts.map {|district| "(#{report.id},#{district.id})"}.join(",")
-      Vssc::District.connection.execute("INSERT INTO vssc_election_reports_gp_units (election_report_id, gp_unit_id) VALUES #{values}")
+      #bulk save and reload
+      
+      districts.values.each {|d| d.save! }
+      # Vedastore::ReportingUnit.import(districts.values)
+      # districts = Vedastore::ReportingUnit.where(object_id: districts.keys)
+      
       
       
       
@@ -74,27 +100,45 @@ module Hart
         h
       end
       DMap::ModelRegister.classes[:precinct].all.values.each do |p|
-        precinct = Vssc::ReportingUnit.new
-        precinct.local_geo_code = p.id
+        precinct = Vedastore::ReportingUnit.new
+        precinct.is_districted = false
+        
+        local_geo_code = Vedastore::ExternalIdentifier.new 
+        local_geo_code.label = 'internal_id'
+        local_geo_code.identifier_type = Vedaspace::Enum::IdentifierType.other #.local_level ?
+        local_geo_code.other_type = "HART internal ID"
+        local_geo_code.value = p.id
+        precinct.external_identifier_collection = Vedastore::ExternalIdentifierCollection.new
+        precinct.external_identifier_collection.external_identifiers << local_geo_code
+        
+        
         source_precinct = source_precincts[p.id] #source.reporting_units.where(:internal_id=>p.id).first
         if source_precinct.nil?
           raise "Precinct #{p} not found in source #{source}"
         end
 
         precinct.object_id = source_precinct.object_id
-        precinct.national_geo_code = source_precinct.ocd_id
-
+        
+        ocd_id = Vedastore::ExternalIdentifier.new 
+        ocd_id.identifier_type = Vedaspace::Enum::IdentifierType.ocd_id
+        ocd_id.value = source_precinct.ocd_id
+        precinct.external_identifier_collection.external_identifiers << ocd_id
+        
+        precinct.election_report_id = report.id
+        
         precincts[precinct.object_id] = precinct
       end
-      Vssc::ReportingUnit.import(precincts.values)
-      #associate with this report
-      precincts = Vssc::ReportingUnit.where(object_id: precincts.keys)
-      values = precincts.map {|precinct| "(#{report.id},#{precinct.id})"}.join(",")
-      Vssc::ReportingUnit.connection.execute("INSERT INTO vssc_election_reports_gp_units (election_report_id, gp_unit_id) VALUES #{values}")
       
-      
-      report_gp_units = report.gp_units.where(type: "Vssc::ReportingUnit").inject({}) do |h, gpu|
-        h[gpu.local_geo_code] = gpu
+      #Bulk import and reload precincts
+      precincts.values.each {|p| p.save! }
+      # Vedastore::ReportingUnit.import(precincts.values)
+      # precincts = Vedastore::ReportingUnit.where(object_id: precincts.keys)
+
+      report_gp_units = report.gp_units.where(type: "Vedastore::ReportingUnit", is_districted: false).inject({}) do |h, gpu|
+        local_code = gpu.external_identifier_collection.external_identifiers.where(
+          identifier_type: Vedaspace::Enum::IdentifierType.other.to_s
+        ).first.value
+        h[local_code] = gpu
         h
       end
       
@@ -102,29 +146,42 @@ module Hart
       gp_sub_unit_refs = []
       precinct_splits = {}
       DMap::ModelRegister.classes[:precinct_split].all.values.each do |ps|
-        precinct_split = Vssc::ReportingUnit.new
+        precinct_split = Vedastore::GpUnit.new
         # precinct split has no background source equivalent??
-        precinct_split.object_id = "vspub-precinct-split-#{ps.id}"
+
+        ocd_id = Vedastore::ExternalIdentifier.new 
+        ocd_id.identifier_type = Vedaspace::Enum::IdentifierType.ocd_id
+        ocd_id.value = "vspub-precinct-split-#{ps.id}"
+        precinct_split.external_identifier_collection = Vedastore::ExternalIdentifierCollection.new
+        precinct_split.external_identifier_collection.external_identifiers << ocd_id
+        
         precinct = report_gp_units[ps.precinct_id] #report.gp_units.where(local_geo_code: ps.precinct_id, type: 'Vssc::ReportingUnit').first
         if precinct.nil?
           raise "Precinct #{ps.precinct_id} not found in source report"
         end
         
-        gp_sub_unit_ref = Vssc::GPSubUnitRef.new(object_id:  precinct_split.object_id, gp_unit_id: precinct.id)
+        gp_sub_unit_ref = Vedastore::GpUnitComposingGpUnitIdRef.new(composing_gp_unit_id_ref:  precinct_split.object_id, gp_unit_id: precinct.id)
         gp_sub_unit_refs << gp_sub_unit_ref
+        
+        precinct_split.election_report_id = report.id
+        
+        precinct_split.object_id = "vspub-precinct-split-#{ps.id}"
+        
         precinct_splits[precinct_split.object_id] = precinct_split
       end
 
-      Vssc::ReportingUnit.import(precinct_splits.values)
-      precinct_splits = Vssc::ReportingUnit.where(object_id: precinct_splits.keys)
-      values = precinct_splits.map {|precinct| "(#{report.id},#{precinct.id})"}.join(",")
-      Vssc::ReportingUnit.connection.execute("INSERT INTO vssc_election_reports_gp_units (election_report_id, gp_unit_id) VALUES #{values}")
+      precinct_splits.values.each {|ps| ps.save! }
+      # Vedastore::GpUnit.import(precinct_splits.values)
+      # precinct_splits = Vedastore::GpUnit.where(object_id: precinct_splits.keys)
 
-      Vssc::GPSubUnitRef.import(gp_sub_unit_refs)
+      Vedastore::GpUnitComposingGpUnitIdRef.import(gp_sub_unit_refs)
       
       
-      report_districts = report.gp_units.where(type: "Vssc::District").inject({}) do |h, d|
-        h[d.local_geo_code] = d
+      report_districts = report.gp_units.where(type: "Vedastore::ReportingUnit", is_districted: true).inject({}) do |h, d|
+        local_code = d.external_identifier_collection.external_identifiers.where(
+          identifier_type: Vedaspace::Enum::IdentifierType.other.to_s
+        ).first.value
+        h[local_code] = d
         h
       end
       district_sub_unit_refs = []
@@ -132,18 +189,24 @@ module Hart
       DMap::ModelRegister.classes[:district_precinct_split].all.values.each do |d_ps|
         district = report_districts[d_ps.district_id] #report.gp_units.where(local_geo_code: d_ps.district_id, type: 'Vssc::District').first
         
-        district_sub_unit_refs << Vssc::GPSubUnitRef.new(object_id:  "vspub-precinct-split-#{d_ps.precinct_split_id}", gp_unit_id: district.id)
+        district_sub_unit_refs << Vedastore::GpUnitComposingGpUnitIdRef.new(composing_gp_unit_id_ref:  "vspub-precinct-split-#{d_ps.precinct_split_id}", gp_unit_id: district.id)
       end
-      Vssc::GPSubUnitRef.import(district_sub_unit_refs)
+      Vedastore::GpUnitComposingGpUnitIdRef.import(district_sub_unit_refs)
       
       DMap::ModelRegister.classes[:party].all.values.each do |p|
-        party = Vssc::Party.new
+        party = Vedastore::Party.new
         party.abbreviation = p.abbreviation
-        party.name = p.name
+        
+        party.name = Vedastore::InternationalizedText.new
+        party_name = Vedastore::LanguageString.new
+        party_name.text = p.name
+        party_name.language = 'en'
+        party.name.language_strings << party_name
+        
         # this may get overwritten later!! 
         party.object_id = "party-#{p.id}"
       
-        report.ballot_selections << party
+        report.parties << party
       end
       report.save!
       
@@ -152,11 +215,17 @@ module Hart
         
         case c.relations(:contest).last.contest_type.downcase
         when 'c'
-          candidate = Vssc::Candidate.new
+          candidate = Vedastore::Candidate.new
           candidate.object_id ="candidate-#{c.id}"
-          candidate.party = "party-#{c.party_id}"
-          candidate.ballot_name = c.name
-          candidate.sequence_order = c.order
+          candidate.party_identifier = "party-#{c.party_id}"
+          
+          
+          candidate.ballot_name = Vedastore::InternationalizedText.new
+          candidate_name = Vedastore::LanguageString.new
+          candidate_name.text = c.name
+          candidate_name.language = 'en'
+          candidate.ballot_name.language_strings << candidate_name
+
           election.candidates << candidate
         when 'p'
         when 's'
@@ -170,12 +239,22 @@ module Hart
       DMap::ModelRegister.classes[:contest].all.values.each do |c|
         contest = nil
         if c.contest_type.downcase == "c"
-          contest = Vssc::CandidateChoice.new
-          contest.office = "office-#{c.id}"
+          contest = Vedastore::CandidateContest.new
+          
+          
+          contest.contest_office_id_refs << Vedastore::ContestOfficeIdRef.new({
+            office_id_ref: "office-#{c.id}"            
+          })
         
-          office = Vssc::Office.new
+          office = Vedastore::Office.new
           office.object_id = "office-#{c.id}"
-          office.name = c.office
+
+          office.name = Vedastore::InternationalizedText.new
+          office_name = Vedastore::LanguageString.new
+          office_name.text = c.office
+          office_name.language = 'en'
+          office.name.language_strings << office_name
+
           report.offices << office
         
         
@@ -183,33 +262,62 @@ module Hart
           # For each candidate
           contest_gp_units = {}
           c.relations(:candidate).each_with_index do |candidate, i|
-            candidate_selection= Vssc::CandidateSelection.new
+            candidate_selection = Vedastore::CandidateSelection.new
             candidate_selection.object_id = "candidate-selection-#{candidate.id}"
-            candidate_selection.candidate_selection_candidate_refs << Vssc::CandidateSelectionCandidateRef.new(object_id: "candidate-#{candidate.id}")
+            candidate_selection.ballot_selection_candidate_id_refs << Vedastore::BallotSelectionCandidateIdRef.new({
+              candidate_id_ref: "candidate-#{candidate.id}"
+            })
             
-            cc = "#{c.id} - #{candidate.id}"
+            # Is this populated?
+            candidate_selection.sequence_order = candidate.order
+            
             contest.ballot_selections << candidate_selection
           end
         elsif c.contest_type.downcase == "p"
-          contest = Vssc::BallotMeasure.new
-          contest.full_text = c.ballot_measure_title
+          contest = Vedastore::BallotMeasureContest.new
+
+          contest.full_text = Vedastore::InternationalizedText.new
+          contest_full_text = Vedastore::LanguageString.new
+          contest_full_text.text = c.ballot_measure_title
+          contest_full_text.language = 'en'
+          contest.full_text.language_strings << contest_full_text
+
+
           c.relations(:candidate).each do |candidate|
-            candidate_selection= Vssc::BallotMeasureSelection.new
-            candidate_selection.object_id ="ballot-measure-selection-#{candidate.id}"
-            candidate_selection.selection = candidate.name
-            contest.ballot_selections << candidate_selection
+            bm_selection = Vedastore::BallotMeasureSelection.new
+            bm_selection.object_id ="ballot-measure-selection-#{candidate.id}"
+            
+            
+            bm_selection.selection = Vedastore::InternationalizedText.new
+            bm_selection_selection = Vedastore::LanguageString.new
+            bm_selection_selection.text = candidate.name
+            bm_selection_selection.language = 'en'
+            bm_selection.selection.language_strings << bm_selection_selection
+            
+            contest.ballot_selections << bm_selection
           end
         elsif c.contest_type.downcase == "s"
-          contest = Vssc::StraightParty.new
+          contest = Vedastore::PartyContest.new
           c.relations(:candidate).each do |candidate|
-            candidate_selection = report.ballot_selections.where(object_id: "party-#{candidate.party_id}").first
-            if candidate_selection.nil?
+            party = report.parties.where(object_id: "party-#{candidate.party_id}").first
+            party_selection = Vedastore::PartySelection.new
+            if party.nil?
               raise "Party #{candidate.party_id} not found! (#{candidate.inspect})"
             end
-            # this is the only place the party "id" is defined (as used by the exported results)
-            candidate_selection.local_party_code = "party-selection-#{candidate.id}"
-            candidate_selection.save!
-            contest.ballot_selections << candidate_selection
+            
+            party_selection.ballot_selection_party_id_refs 
+            
+            # this is the only place the party "id" is defined (as used by the exported results) ?
+            # party.local_party_code = "party-selection-#{candidate.id}" (?)
+            # party.save!
+            
+            party_selection.object_id = "party-selection-#{candidate.id}"
+            party_selection.ballot_selection_party_id_refs << 
+            Vedastore::BallotSelectionPartyIdRef.new({
+              ballot_selection: party_selection,
+              party_id_ref: "party-#{candidate.party_id}"
+            })
+            contest.ballot_selections << party_selection
           end
           
           # Straight Party        
@@ -221,7 +329,7 @@ module Hart
         # For whatever the contest, look at all the precinct-splits in the contest/precinct-split
         # and detect an exatly-matching district
         district_id = c.relations(:district_contest).last.district_id
-        contest.contest_gp_scope = source.districts.where(internal_id: district_id).first.object_id
+        contest.electoral_district_identifier = source.districts.where(internal_id: district_id).first.object_id
 
         contest.object_id = "contest-#{c.id}"
         contest.name = c.office

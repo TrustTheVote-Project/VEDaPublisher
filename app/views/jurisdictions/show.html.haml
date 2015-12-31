@@ -87,20 +87,20 @@
               = eru.election_report.issuer
               %br
               Date:
-              = eru.election_report.date
+              = eru.election_report.generated_date
               %br
               Status:
               = eru.election_report.status
               %br
               = "Elections:"
               %ul
-                - eru.election_report.elections.each do |e|
-                  %li= link_to e.name, e
+                - eru.election_report.election.tap do |e|
+                  %li= link_to e.name.language_strings.first.text, ved_election_path(e)
             %td
               = link_to "Export Election Report NIST ERR", ved_election_report_path(eru.election_report, format: :xml)
               %br
               Upload Election Results
-              = semantic_form_for eru.election_report do |f|
+              = semantic_form_for ved_election_report_path(eru.election_report) do |f|
                 = f.inputs do
                   = f.input :election_results_csv, as: :file
                 = f.actions do

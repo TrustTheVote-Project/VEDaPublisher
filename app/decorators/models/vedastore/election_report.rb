@@ -3,30 +3,35 @@ Vedastore::ElectionReport.class_eval do
   def self.find_with_eager_load(id)
     e = self.where(id: id).includes([
       {:gp_units=>[
-          :reporting_unit_authority_refs,
-          :contacts,
-          :gp_sub_units, 
-          :gp_sub_unit_refs, 
-          :total_counts, 
-          :party_registration,
-          {:spatial_dimensions=>[:spatial_extent]},
-          {:ocd_object=>[:shapes]}
+          :gp_unit_composing_gp_unit_id_refs,
+          #:contacts,
+          #:gp_sub_units, 
+          #:gp_sub_unit_refs, 
+          #:total_counts, 
+          :summary_counts,
+          #:party_registration,
+          #{:spatial_dimensions=>[:spatial_extent]},
+          #{:ocd_object=>[:shapes]}
         ]},
-      :ballot_selections,
+      #:ballot_selections,
+      :parties,
+      :people,
+      :offices,
       {:people=>[
         {:contacts=>[:reporting_units]}
       ]},
       :offices,
-      {:elections=>[
+      {:election=>[
           {:ballot_styles=>[:ordered_contests]},
-          {:candidates=>[:offices]},
+          {:candidates=>[]},
           {:contests=>[
             {:ballot_selections=>[
                 #:counts,
-                {:candidate_selection_candidate_refs=>[:candidate]}
+                #{:candidate_selection_candidate_refs=>[:candidate]}
               ]},
-            {:contest_total_counts=>[:total_count]},
-            :total_counts_by_gp_unit
+            :summary_counts,
+            #{:contest_total_counts=>[:total_count]},
+            #:total_counts_by_gp_unit
           ]}
         ]
       }
@@ -34,7 +39,7 @@ Vedastore::ElectionReport.class_eval do
     
     #load all counts
     ballot_selection_ids = []
-    e.elections.each do |election|
+    e.election.tap do |election|
       election.contests.each do |contest|
         puts "Loading contest #{contest.inspect} ballot selections"
         Rails.logger.debug("Loading contest #{contest.inspect} ballot selections")
@@ -47,13 +52,13 @@ Vedastore::ElectionReport.class_eval do
     
     batch_size = 10000
     
-    count = Vedastore::Count.where(:ballot_selection_id=>ballot_selection_ids).count
+    count = Vedastore::VoteCount.where(:countable_id=>ballot_selection_ids, :countable_type=>Vedastore::BallotSelection).count
     puts count
     Rails.logger.debug("#{count} Counts")
     
     ballot_selection_counts = {}
     
-    Vedastore::Count.where(:ballot_selection_id=>ballot_selection_ids).find_in_batches(batch_size: batch_size).with_index do |group, batch|
+    Vedastore::VoteCount.where(:countable_id=>ballot_selection_ids, :countable_type=>Vedastore::BallotSelection).find_in_batches(batch_size: batch_size).with_index do |group, batch|
       puts "Loading #{batch * batch_size} of #{count}"
       Rails.logger.debug("Loading #{batch * batch_size} of #{count}")
       group.each do |vc|
@@ -62,7 +67,7 @@ Vedastore::ElectionReport.class_eval do
       end
     end
 
-    e.elections.each do |election|
+    e.election.tap do |election|
       election.contests.each do |contest|
         puts "Substituting contest #{contest.inspect} ballot selections"
         Rails.logger.debug("Substituting contest #{contest.inspect} ballot selections")
