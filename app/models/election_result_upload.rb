@@ -38,7 +38,7 @@ class ElectionResultUpload < ActiveRecord::Base
     percent = 0
     self.update_attributes(row_count: pending_rows, rows_processed: 0)
     
-    election = election_report.elections.includes([
+    election = Vedastore::Election.where(id: election_report.election_id).includes([
       {:contests=>[
         :ballot_selections
       ]}
@@ -53,7 +53,7 @@ class ElectionResultUpload < ActiveRecord::Base
       r[c.object_id] = {
         contest: c,
         ballot_selections: c.ballot_selections.inject({}) {|bsr, bs| bsr[bs.object_id]=bs; bsr},
-        parties: c.ballot_selections.inject({}){|bsr, bs| bsr[bs.local_party_code]=bs if bs.is_a?(Vedastore::Party); bsr},
+        parties: c.ballot_selections.inject({}){|bsr, bs| bsr[bs.object_id]=bs if bs.is_a?(Vedastore::PartySelection); bsr},
         write_ins: {}
       }
       r
@@ -85,7 +85,7 @@ class ElectionResultUpload < ActiveRecord::Base
       candidate_id = row['candidate_id']
       candidate_type = row["Candidate_Type"].to_s.downcase # C vs W for write-in
       candidate_selection = nil
-      if contest.is_a?(Vedastore::CandidateChoice)
+      if contest.is_a?(Vedastore::CandidateContest)
         if candidate_type == "c"
           candidate_selection = contest_info[:ballot_selections]["candidate-selection-#{candidate_id}"]
         elsif candidate_type == "w"
@@ -98,24 +98,33 @@ class ElectionResultUpload < ActiveRecord::Base
             candidate_selection.is_write_in = true
             candidate_selection.object_id = writein_selection_id
             candidate_writein_id = "candidate-writein-#{candidate_id}"
-            candidate_selection.candidate_selection_candidate_refs << Vedastore::CandidateSelectionCandidateRef.new(object_id: candidate_writein_id)
-            election.candidates << Vedastore::Candidate.new(
-              object_id: candidate_writein_id,
-              ballot_name: row["candidate_name"]
+            candidate_selection.ballot_selection_candidate_id_refs << Vedastore::BallotSelectionCandidateIdRef.new(
+              candidate_id_ref: candidate_writein_id
             )
+            
+            write_in_candidate = Vedastore::Candidate.new(object_id: candidate_writein_id)            
+            write_in_candidate.ballot_name = Vedastore::InternationalizedText.new
+            candidate_name = Vedastore::LanguageString.new
+            candidate_name.text = row["candidate_name"]
+            candidate_name.language = 'en'
+            write_in_candidate.ballot_name.language_strings << candidate_name
+            
+            election.candidates << write_in_candidate
+            
             election.save!
             contest.ballot_selections << candidate_selection
             contest.save!
             contest_info[:write_ins][writein_selection_id] = candidate_selection
           end
         end
-      elsif contest.is_a?(Vedastore::StraightParty)
+      elsif contest.is_a?(Vedastore::PartyContest)
         candidate_selection = contest_info[:parties]["party-selection-#{candidate_id}"]
         # contest.ballot_selections.where(local_party_code: "party-selection-#{candidate_id}").first
-      elsif contest.is_a?(Vedastore::BallotMeasure)
+      elsif contest.is_a?(Vedastore::BallotMeasureContest)
         candidate_selection = contest_info[:ballot_selections]["ballot-measure-selection-#{candidate_id}"]
       end
       if candidate_selection.nil?
+        raise contest_info[:parties].to_s
         raise "No candidate selection for contest #{contest.type} #{contest.id}, candidate #{candidate_id}"
       end
 
@@ -131,20 +140,23 @@ class ElectionResultUpload < ActiveRecord::Base
       vc_e = Vedastore::VoteCount.new
       vc = Vedastore::VoteCount.new
       
-      vc_e.gp_unit = vc.gp_unit = vc_a.gp_unit = ps.object_id
-      vc_a.object_id = "votecount-#{ccp}-absentee"
-      vc_a.ballot_type = Vedaspace::Enum::CountItemType.absentee
+      vc_e.gp_unit_identifier = vc.gp_unit_identifier = vc_a.gp_unit_identifier = ps.object_id
+      #vc_a.object_id = "votecount-#{ccp}-absentee"
+      vc_a.count_item_type = Vedaspace::Enum::CountItemType.absentee
       vc_a.count = row["absentee_votes"]
-      vc_e.object_id = "votecount-#{ccp}-early"
-      vc_e.ballot_type = Vedaspace::Enum::CountItemType.early
+      #vc_e.object_id = "votecount-#{ccp}-early"
+      vc_e.count_item_type = Vedaspace::Enum::CountItemType.early
       vc_e.count = row["early_votes"]
-      vc.object_id = "votecount-#{ccp}-election-day"
-      vc.ballot_type = Vedaspace::Enum::CountItemType.election_day
+      #vc.object_id = "votecount-#{ccp}-election-day"
+      vc.count_item_type = Vedaspace::Enum::CountItemType.election_day
       vc.count = row["election_votes"]
       
-      vc.ballot_selection_id = candidate_selection.id
-      vc_a.ballot_selection_id = candidate_selection.id
-      vc_e.ballot_selection_id = candidate_selection.id
+      vc.countable_id = candidate_selection.id
+      vc.countable_type = Vedastore::BallotSelection
+      vc_a.countable_id = candidate_selection.id
+      vc_a.countable_type = Vedastore::BallotSelection
+      vc_e.countable_id = candidate_selection.id
+      vc_e.countable_type = Vedastore::BallotSelection
       
       vc_list << vc
       vc_list << vc_a
@@ -153,61 +165,62 @@ class ElectionResultUpload < ActiveRecord::Base
       
       total_count_by_gp_unit_id_total = "total-counts-#{ps.object_id}-#{contest_id}-#{Vedaspace::Enum::CountItemType.total.to_s}"
       if total_count_hash[total_count_by_gp_unit_id_total].nil?
-        total_count = Vedastore::TotalCount.new        
+        total_count = Vedastore::SummaryCount.new        
         # absentee_ballots early_ballots	election_ballots        
-        total_count.ballot_type = Vedastore::BallotType.total     
-        total_count.gp_unit = ps.object_id
-        total_count.object_id = total_count_by_gp_unit_id_total
+        total_count.count_item_type = Vedaspace::Enum::CountItemType.total     
+        total_count.gp_unit_identifier = ps.object_id
+        # total_count.object_id = total_count_by_gp_unit_id_total
         total_count.ballots_cast = row["total_ballots"]
         total_count.overvotes = row["total_over_votes"]
         total_count.undervotes = row["total_under_votes"]
-        total_count_hash[total_count.object_id] = total_count        
+        total_count_hash[total_count_by_gp_unit_id_total] = total_count        
         contest_total_counts[contest.id] ||= []
-        contest_total_counts[contest.id] << total_count.object_id
+        contest_total_counts[contest.id] << total_count
       end
+      
       total_count_by_gp_unit_id_absentee = "total-counts-#{ps.object_id}-#{contest_id}-#{Vedaspace::Enum::CountItemType.absentee.to_s}"
       if total_count_hash[total_count_by_gp_unit_id_absentee].nil?
-        total_count = Vedastore::TotalCount.new        
+        total_count = Vedastore::SummaryCount.new        
         # absentee_ballots early_ballots	election_ballots        
-        total_count.ballot_type = Vedastore::BallotType.absentee     
-        total_count.gp_unit = ps.object_id
-        total_count.object_id = total_count_by_gp_unit_id_absentee
+        total_count.count_item_type = Vedaspace::Enum::CountItemType.absentee     
+        total_count.gp_unit_identifier = ps.object_id
+        # total_count.object_id = total_count_by_gp_unit_id_absentee
         total_count.ballots_cast = row["absentee_ballots"]
         total_count.overvotes = row["absentee_over_votes"]
         total_count.undervotes = row["absentee_under_votes"]
-        total_count_hash[total_count.object_id] = total_count        
+        total_count_hash[total_count_by_gp_unit_id_absentee] = total_count        
         contest_total_counts[contest.id] ||= []
-        contest_total_counts[contest.id] << total_count.object_id
+        contest_total_counts[contest.id] << total_count
       end
       
       total_count_by_gp_unit_id_early = "total-counts-#{ps.object_id}-#{contest_id}-#{Vedaspace::Enum::CountItemType.early.to_s}"
       if total_count_hash[total_count_by_gp_unit_id_early].nil?
-        total_count = Vedastore::TotalCount.new        
+        total_count = Vedastore::SummaryCount.new        
         # absentee_ballots early_ballots	election_ballots        
-        total_count.ballot_type = Vedaspace::Enum::CountItemType.early
-        total_count.gp_unit = ps.object_id
-        total_count.object_id = total_count_by_gp_unit_id_early
+        total_count.count_item_type = Vedaspace::Enum::CountItemType.early
+        total_count.gp_unit_identifier = ps.object_id
+        # total_count.object_id = total_count_by_gp_unit_id_early
         total_count.ballots_cast = row["early_ballots"]
         total_count.overvotes = row["early_over_votes"]
         total_count.undervotes = row["early_under_votes"]
-        total_count_hash[total_count.object_id] = total_count        
+        total_count_hash[total_count_by_gp_unit_id_early] = total_count        
         contest_total_counts[contest.id] ||= []
-        contest_total_counts[contest.id] << total_count.object_id
+        contest_total_counts[contest.id] << total_count
       end
       
       total_count_by_gp_unit_id_election_day = "total-counts-#{ps.object_id}-#{contest_id}-#{Vedaspace::Enum::CountItemType.election_day.to_s}"
       if total_count_hash[total_count_by_gp_unit_id_election_day].nil?
-        total_count = Vedastore::TotalCount.new        
+        total_count = Vedastore::SummaryCount.new        
         # absentee_ballots early_ballots	election_ballots        
-        total_count.ballot_type = Vedaspace::Enum::CountItemType.election_day
-        total_count.gp_unit = ps.object_id
-        total_count.object_id = total_count_by_gp_unit_id_election_day
+        total_count.count_item_type = Vedaspace::Enum::CountItemType.election_day
+        total_count.gp_unit_identifier = ps.object_id
+        # total_count.object_id = total_count_by_gp_unit_id_election_day
         total_count.ballots_cast = row["election_ballots"]
         total_count.overvotes = row["election_over_votes"]
         total_count.undervotes = row["election_under_votes"]
-        total_count_hash[total_count.object_id] = total_count        
+        total_count_hash[total_count_by_gp_unit_id_election_day] = total_count        
         contest_total_counts[contest.id] ||= []
-        contest_total_counts[contest.id] << total_count.object_id
+        contest_total_counts[contest.id] << total_count
       end
       
     end
@@ -228,9 +241,11 @@ class ElectionResultUpload < ActiveRecord::Base
     
     i = 0
     length = total_count_hash.values.size
+    total_count_imported = []
     total_count_hash.values.in_groups_of(grp_size, false) do |group|
-      Vedastore::TotalCount.import(group)
-      puts "Imported Total Count #{i*grp_size}-#{(i+1)*grp_size} of #{length}"   
+      Vedastore::SummaryCount.import(group)
+      total_count_imported += Vedastore::SummaryCount.pluck(:id).last(group.size)
+      puts "Imported Total Count #{i*grp_size}-#{(i+1)*grp_size} of #{length}"
       i += 1  
     end
     
@@ -238,8 +253,8 @@ class ElectionResultUpload < ActiveRecord::Base
     h = {}
     i = 0
     length = total_count_hash.keys.size
-    total_count_hash.keys.in_groups_of(grp_size, false) do |group|
-      Vedastore::TotalCount.where(:object_id=>group).each do |tc|
+    total_count_imported.in_groups_of(grp_size, false) do |group|
+      Vedastore::SummaryCount.where(id: group).each do |tc|
         h[tc.object_id] = tc.id
       end
       puts "Reloading total_count list #{i*grp_size}-#{(i+1)*grp_size} of #{length}" 
@@ -247,21 +262,32 @@ class ElectionResultUpload < ActiveRecord::Base
     end
     total_count_hash = h
     
-
+    # Vedastore::Contest has Summary Counts (summary_counts) 
+    #
     puts "Build Contest Total Counts by gpunit list"
     contest_total_counts_by_gp_unit = []
-    contest_total_counts.each do |contest_id, tc_object_id_list|
-      tc_object_id_list.each do |tc_object_id|
-        contest_total_counts_by_gp_unit << Vedastore::ContestTotalCountsByGPUnit.new(total_count_id: total_count_hash[tc_object_id], contest_id: contest_id)
+    contest_total_counts.each do |contest_id, tc_list|
+      tc_list.each do |tc|
+        sc = Vedastore::SummaryCount.new
+        sc.total_count.count_item_type = tc.count_item_type
+        sc.gp_unit_identifier = tc.gp_unit_identifier
+        sc.ballots_cast = tc.ballots_cast
+        sc.overvotes = tc.overvotes
+        sc.undervotes = tc.undervotes
+        
+        sc.countable_type = Vedastore::Contest
+        sc.countable_id = contest_id
+        
+        contest_total_counts_by_gp_unit << sc
       end
     end
-    
+
     i = 0
     length = contest_total_counts_by_gp_unit.size
     puts "Load #{length} total count by gp unit"
     contest_total_counts_by_gp_unit.in_groups_of(grp_size, false) do |group|
-      Vedastore::ContestTotalCountsByGPUnit.import(group)
-      puts "Imported Total Count by GPUnit #{i*grp_size}-#{(i+1)*grp_size} of #{length}"      
+      Vedastore::SummaryCount.import(group)
+      puts "Imported Total Count by GPUnit #{i*grp_size}-#{(i+1)*grp_size} of #{length}"
       i += 1
     end
     
@@ -271,7 +297,7 @@ class ElectionResultUpload < ActiveRecord::Base
     # TODO: when uploading results, change the report status. To what?
     
     puts "Save!"
-    election_report.status = Vedastore::ReportStatus.unofficial_complete
+    election_report.status = Vedaspace::Enum::ResultsStatus.unofficial_complete
     election_report.save!  
   end
   

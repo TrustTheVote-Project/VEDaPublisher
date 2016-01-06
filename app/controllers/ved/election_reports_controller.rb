@@ -21,7 +21,7 @@ class Ved::ElectionReportsController < ApplicationController
   
 private
     def election_report_params
-      params.require(:vedastore_election_report).permit(:election_results_csv)
+      params.require(:election_report).permit(:election_results_csv)
     end
 
 

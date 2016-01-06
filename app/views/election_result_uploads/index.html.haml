@@ -10,7 +10,7 @@
         = I18n.l(eru.created_at, format: :long)
         = ' - '
         = eru.election_report.issuer
-        = eru.election_report.date
+        = eru.election_report.generated_date
         = ' - '
         = link_to eru.election_report.jurisdiction.name, jurisdiction_path(eru.election_report.jurisdiction)
   

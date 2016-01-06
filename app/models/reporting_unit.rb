@@ -10,4 +10,5 @@ class ReportingUnit < ActiveRecord::Base
   def object_id
     "vspub-reporting-unit-#{self.id}"
   end
+  
 end

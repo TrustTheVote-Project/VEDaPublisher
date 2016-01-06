@@ -13,7 +13,29 @@ class District < ActiveRecord::Base
   end
   
   def vedastore_district_type
-    Vedaspace::Enum::ReportingUnitType.find(ocd_object.district_type) || Vedaspace::Enum::ReportingUnitType.other
+    t = Vedaspace::Enum::ReportingUnitType.find(self.district_type) 
+    
+    t = t || case self.district_type
+    when "School District"
+      Vedaspace::Enum::ReportingUnitType.school
+    when "Aquifer District", "WCID", "Water District"
+      Vedaspace::Enum::ReportingUnitType.water
+    when "Municipal Utility District", "MUD"
+      Vedaspace::Enum::ReportingUnitType.utility
+    when "Community College", "Library District"
+      Vedaspace::Enum::ReportingUnitType.other
+    when "State House"
+      Vedaspace::Enum::ReportingUnitType.state_house
+    when "State Senate"
+      Vedaspace::Enum::ReportingUnitType.state_senate
+    when "Federal", "Federal Ballot", "All", "Statewide"
+      Vedaspace::Enum::ReportingUnitType.state
+    else
+      Vedaspace::Enum::ReportingUnitType.other
+    end
+    
+    return t
+  
   end
   
   # def vssc_type

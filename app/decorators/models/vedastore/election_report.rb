@@ -62,8 +62,8 @@ Vedastore::ElectionReport.class_eval do
       puts "Loading #{batch * batch_size} of #{count}"
       Rails.logger.debug("Loading #{batch * batch_size} of #{count}")
       group.each do |vc|
-        ballot_selection_counts[vc.ballot_selection_id] ||= []
-        ballot_selection_counts[vc.ballot_selection_id] << vc        
+        ballot_selection_counts[vc.countable_id] ||= []
+        ballot_selection_counts[vc.countable_id] << vc        
       end
     end
 

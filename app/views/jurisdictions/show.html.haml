@@ -100,7 +100,7 @@
               = link_to "Export Election Report NIST ERR", ved_election_report_path(eru.election_report, format: :xml)
               %br
               Upload Election Results
-              = semantic_form_for ved_election_report_path(eru.election_report) do |f|
+              = semantic_form_for eru.election_report, url: ved_election_report_path(eru.election_report) do |f|
                 = f.inputs do
                   = f.input :election_results_csv, as: :file
                 = f.actions do

@@ -111,6 +111,7 @@ module Hart
         precinct.external_identifier_collection = Vedastore::ExternalIdentifierCollection.new
         precinct.external_identifier_collection.external_identifiers << local_geo_code
         
+        precinct.name = "Precinct #{p.id}"
         
         source_precinct = source_precincts[p.id] #source.reporting_units.where(:internal_id=>p.id).first
         if source_precinct.nil?
