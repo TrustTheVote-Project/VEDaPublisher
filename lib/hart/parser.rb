@@ -147,7 +147,7 @@ module Hart
       gp_sub_unit_refs = []
       precinct_splits = {}
       DMap::ModelRegister.classes[:precinct_split].all.values.each do |ps|
-        precinct_split = Vedastore::GpUnit.new
+        precinct_split = Vedastore::ReportingUnit.new
         # precinct split has no background source equivalent??
 
         ocd_id = Vedastore::ExternalIdentifier.new 
@@ -161,7 +161,9 @@ module Hart
           raise "Precinct #{ps.precinct_id} not found in source report"
         end
         
-        gp_sub_unit_ref = Vedastore::GpUnitComposingGpUnitIdRef.new(composing_gp_unit_id_ref:  precinct_split.object_id, gp_unit_id: precinct.id)
+        gp_sub_unit_ref = Vedastore::GpUnitComposingGpUnitIdRef.new(
+          composing_gp_unit_id_ref:  ocd_id.value, 
+          gp_unit_id: precinct.id)
         gp_sub_unit_refs << gp_sub_unit_ref
         
         precinct_split.election_report_id = report.id
@@ -190,7 +192,9 @@ module Hart
       DMap::ModelRegister.classes[:district_precinct_split].all.values.each do |d_ps|
         district = report_districts[d_ps.district_id] #report.gp_units.where(local_geo_code: d_ps.district_id, type: 'Vssc::District').first
         
-        district_sub_unit_refs << Vedastore::GpUnitComposingGpUnitIdRef.new(composing_gp_unit_id_ref:  "vspub-precinct-split-#{d_ps.precinct_split_id}", gp_unit_id: district.id)
+        district_sub_unit_refs << Vedastore::GpUnitComposingGpUnitIdRef.new(
+          composing_gp_unit_id_ref:  "vspub-precinct-split-#{d_ps.precinct_split_id}", 
+          gp_unit_id: district.id)
       end
       Vedastore::GpUnitComposingGpUnitIdRef.import(district_sub_unit_refs)
       
