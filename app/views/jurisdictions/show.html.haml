@@ -108,16 +108,16 @@
             
 
       .row
-        .col-md-6
-          %h3 Upload NIST ERR Election Report
+        .col-md-4
+          %h3 Upload NIST ERR Election Definition
           = semantic_form_for @jurisdiction do |f|
             = f.inputs do
               = f.input :vedastore_election_report, as: :file
             = f.actions do
               = f.action :submit, :label=>"Upload"
       
-        .col-md-6
-          %h3 Upload Hart Election Report (ZIP)
+        .col-md-4
+          %h3 Upload Hart Election Definition (ZIP)
           - if @jurisdiction.background_sources.empty?
             You must upload jurisdiction district and precinct definitions in order
             to process Hart data.
@@ -128,4 +128,16 @@
                 = f.input :hart_election_report, as: :file
               = f.actions do
                 = f.action :submit, :label=>"Upload"
-      
+        .col-md-4
+          %h3 Upload CSV Election Definition
+          - if @jurisdiction.background_sources.empty?
+            You must upload jurisdiction district and precinct definitions in order
+            to process CSV election definitions.
+          - else 
+            = semantic_form_for @jurisdiction do |f|
+              = f.inputs do
+                = f.input :selected_source_for_csv_definition, collection: @jurisdiction.background_sources.pluck(:name, :id)
+                = f.input :csv_election_definition_name
+                = f.input :csv_election_definition, as: :file
+              = f.actions do
+                = f.action :submit, :label=>"Upload"

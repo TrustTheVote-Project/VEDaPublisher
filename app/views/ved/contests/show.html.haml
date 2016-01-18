@@ -2,12 +2,13 @@
   %h1
     = @contest.name
     in election
-    = link_to @contest.election.name, @contest.election
+    = link_to @contest.election.name, ved_election_path(@contest.election)
   %h2
     District
-    = @contest.contest_gp_scope_object.name
+    - @contest.contest_gp_scope_object.tap do |obj|
+      = obj ? obj.name : nil
     = link_to "edit", edit_ved_contest_path(@contest)
-  - if @contest.is_a?(Vedastore::BallotMeasure)
+  - if @contest.is_a?(Vedastore::BallotMeasureContest)
     %h4 Summary
     %h3 Ballot Measure
     %p= @contest.summary_text
@@ -16,12 +17,12 @@
   
   
   %ul
-    %li= "Ballots Case: #{@contest.total_ballots_cast}"
-    %li= "Overvotes: #{@contest.total_overvotes}"
-    %li= "Undervotes: #{@contest.total_undervotes}"
-    %li= "Write ins: #{@contest.total_write_ins}"
+    %li= # "Ballots Case: #{@contest.total_ballots_cast}"
+    %li= #"Overvotes: #{@contest.total_overvotes}"
+    %li= #"Undervotes: #{@contest.total_undervotes}"
+    %li= #"Write ins: #{@contest.total_write_ins}"
     
-  - if @contest.total_counts_by_gp_unit.any? && false
+  - if false && @contest.total_counts_by_gp_unit.any? 
     %ul
       - @contest.total_counts_by_gp_unit.each do |tc|
         %li
@@ -40,7 +41,7 @@
     - @contest.ballot_selections.each do |bs|
       %li
         = bs.name
-        = bs.totals
+        -#= bs.totals
         %ul.votes
           - if false
             - bs.vote_counts.each do |c|

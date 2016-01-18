@@ -6,7 +6,8 @@ class Ved::ContestsController < ApplicationController
   def edit
     @contest = Vedastore::Contest.find(params[:id])
     #@gp_units = @contest.election.election_report.election_report_upload.background_source.districts + @contest.election.election_report.election_report_upload.background_source.reporting_units
-    @gp_units = @contest.election.election_report.gp_units
+    @election_report = Vedastore::ElectionReport.where(election_id: @contest.election_id).first
+    @gp_units = @election_report.gp_units
   end
   
   def update
@@ -18,8 +19,8 @@ class Ved::ContestsController < ApplicationController
 
 private
     def contest_params
-      cp = params[:ved_candidate_choice] || params[:ved_ballot_measure]
-      cp.permit(:contest_gp_scope)
+      cp = params[:candidate_contest] || params[:ballot_measure_contest]
+      cp.permit(:electoral_district_identifier)
     end
   
 end

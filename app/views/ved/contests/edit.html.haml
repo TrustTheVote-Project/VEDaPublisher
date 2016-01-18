@@ -1,0 +1,11 @@
+.container
+  %h1
+    = @contest.name
+    in election
+    = link_to @contest.election.name, ved_election_path(@contest.election)
+  = semantic_form_for @contest, url: ved_contest_path(@contest) do |f|
+    = f.inputs do
+      = f.input :electoral_district_identifier, as: :select, collection: @gp_units.collect{|g| [g.name.presence || g.object_id, g.object_id]}
+    = f.actions do
+      = f.action :submit
+      

@@ -61,6 +61,7 @@ class ElectionResultUpload < ActiveRecord::Base
     end
   
     vc_list = []
+    new_contests = {}
     total_count_hash = {}
     contest_total_counts = {}
   
@@ -77,9 +78,44 @@ class ElectionResultUpload < ActiveRecord::Base
         next 
       end
       contest_id = row['Contest_Id']
-      # TODO: shouldn't use elections.first
       contest_info = contests["contest-#{contest_id}"]
-      contest = contest_info[:contest]
+      if !(contest_info)
+        contest_type = Vedastore::CandidateContest  
+        if row['Contest_Type'] == 'B' 
+          contest_type = Vedastore::BallotMeasureContest
+        elsif row['Contest_Type'] == 'P'
+          contest_type = Vedastore::PartyContest
+        end
+        contest = contest_type.new
+        contest.election_id = election.id
+        contest.name = row['Contest_title']
+        contest.save!
+        
+        contest_info = {
+          contest: contest,
+          ballot_selections: {},
+          parties: {},
+          write_ins: {}
+        }
+        contests["contest-#{contest_id}"] = contest_info
+        
+        new_contests["contest-#{contest_id}"] = {
+          contest: contest,
+          precincts: {}
+        }
+      else
+        contest = contest_info[:contest]
+      end
+      
+      if new_contests["contest-#{contest_id}"]
+        pct_id = row['Precinct_name']
+        if new_contests["contest-#{contest_id}"][:precincts][pct_id].nil?
+          new_contests["contest-#{contest_id}"][:precincts][pct_id] = {
+            id: pct_id,
+            name: row['Precinct_name']
+          }
+        end
+      end
     
     
     
@@ -89,43 +125,84 @@ class ElectionResultUpload < ActiveRecord::Base
       if contest.is_a?(Vedastore::CandidateContest)
         if candidate_type == "c"
           candidate_selection = contest_info[:ballot_selections]["candidate-selection-#{candidate_id}"]
-        elsif candidate_type == "w"
+        end
+        if candidate_selection.nil? || candidate_type == "w"
           #Add a write-in option
-          #see if it's already added
-          writein_selection_id = "candidate-selection-writein-#{candidate_id}"
-          candidate_selection = contest_info[:write_ins][writein_selection_id]
+          selection_id = nil
+          if candidate_type == "w"
+            selection_id = "candidate-selection-writein-#{candidate_id}"
+            #see if it's already added
+            candidate_selection = contest_info[:write_ins][selection_id]
+          else
+            selection_id = "candidate-selection-#{candidate_id}"
+          end
           if candidate_selection.nil?
             candidate_selection= Vedastore::CandidateSelection.new
-            candidate_selection.is_write_in = true
-            candidate_selection.object_id = writein_selection_id
-            candidate_writein_id = "candidate-writein-#{candidate_id}"
+            candidate_selection.is_write_in = candidate_type == "w"
+            candidate_selection.object_id = selection_id
+            candidate_id = candidate_selection.is_write_in ? "candidate-writein-#{candidate_id}" : "candidate-#{candidate_id}"
             candidate_selection.ballot_selection_candidate_id_refs << Vedastore::BallotSelectionCandidateIdRef.new(
-              candidate_id_ref: candidate_writein_id
+              candidate_id_ref: candidate_id
             )
           
-            write_in_candidate = Vedastore::Candidate.new(object_id: candidate_writein_id)            
-            write_in_candidate.ballot_name = Vedastore::InternationalizedText.new
+            new_candidate = Vedastore::Candidate.new(object_id: candidate_id)            
+            new_candidate.ballot_name = Vedastore::InternationalizedText.new
             candidate_name = Vedastore::LanguageString.new
             candidate_name.text = row["candidate_name"]
             candidate_name.language = 'en'
-            write_in_candidate.ballot_name.language_strings << candidate_name
+            new_candidate.ballot_name.language_strings << candidate_name
           
-            election.candidates << write_in_candidate
+            election.candidates << new_candidate
           
             election.save!
             contest.ballot_selections << candidate_selection
             contest.save!
-            contest_info[:write_ins][writein_selection_id] = candidate_selection
+            if candidate_selection.is_write_in
+              contest_info[:write_ins][selection_id] = candidate_selection
+            else
+              contest_info[:ballot_selections][selection_id] = candidate_selection
+            end
           end
         end
       elsif contest.is_a?(Vedastore::PartyContest)
         candidate_selection = contest_info[:parties]["party-selection-#{candidate_id}"]
+        if candidate_selection.nil?
+          candidate_selection = Vedastore::PartySelection.new
+          candidate_selection.object_id = "party-selection-#{candidate_id}"
+          party_id = "party-#{candidate_id}"
+          candidate_selection.ballot_selection_party_id_refs << Vedastore::BallotSelectionPartyIdRef.new(
+            party_id_ref: party_id
+          )
+          new_party = election_report.parties.find_or_create_by(object_id: party_id)
+          new_party.abbreviation ||= row['Party_Code']
+          new_party.save!
+          candidate_selection.save!
+          contest.ballot_selections << candidate_selection
+          contest.save!
+          contest_info[:parties]["party-selection-#{candidate_id}"] = candidate_selection
+        end
         # contest.ballot_selections.where(local_party_code: "party-selection-#{candidate_id}").first
       elsif contest.is_a?(Vedastore::BallotMeasureContest)
-        candidate_selection = contest_info[:ballot_selections]["ballot-measure-selection-#{candidate_id}"]
+        bms_id = "ballot-measure-selection-#{candidate_id}"
+        candidate_selection = contest_info[:ballot_selections][bms_id]
+        if candidate_selection.nil?
+          candidate_selection = Vedastore::BallotMeasureSelection.new
+          candidate_selection.object_id = bms_id
+          
+          selection_name = Vedastore::LanguageString.new
+          selection_name.text = row["candidate_name"]
+          selection_name.language = 'en'
+          candidate_selection.selection = Vedastore::InternationalizedText.new
+          candidate_selection.selection.language_strings << selection_name
+          
+          candidate_selection.save!
+          contest.ballot_selections << candidate_selection
+          contest.save!
+          contest_info[:ballot_selections][bms_id] = candidate_selection
+          
+        end
       end
       if candidate_selection.nil?
-        raise contest_info[:parties].to_s
         raise "No candidate selection for contest #{contest.type} #{contest.id}, candidate #{candidate_id}"
       end
 
@@ -228,6 +305,20 @@ class ElectionResultUpload < ActiveRecord::Base
   
     self.update_attributes(rows_processed: self.row_count)
   
+    # any newly defined contests should get saved
+    new_contests.each do |o_id, contest_precincts|
+      contest = contest_precincts[:contest]
+      # begin
+      #   contest.electoral_district_id = election_report.district_from_precinct_ids(
+      #     contest_precincts[:precincts].collect {|pct_id, pct_info| "#{pct_info[:name]}" }
+      #   ).object_id
+      # rescue Exception => e
+      #   raise "\n" + "#{contest.id} #{contest.name}" + e.message.to_s
+      # end
+      #Also add all precincts and this district to the list of election_report gp_units??
+      contest.save!
+    end
+  
   
     # break it down
     grp_size = 5000
@@ -291,7 +382,6 @@ class ElectionResultUpload < ActiveRecord::Base
       puts "Imported Total Count by GPUnit #{i*grp_size}-#{(i+1)*grp_size} of #{length}"
       i += 1
     end
-  
   
   
   

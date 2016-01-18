@@ -3,7 +3,7 @@ require 'fileutils'
 require 'zip'
 
 class Jurisdiction < ActiveRecord::Base
-  before_save :process_hart_upload, :process_reporting_unit_kml_upload
+  before_save :process_csv_election_definition, :process_hart_upload, :process_reporting_unit_kml_upload
   
   belongs_to :state
   
@@ -112,6 +112,22 @@ class Jurisdiction < ActiveRecord::Base
       # delete from the hart file      
     end
   end
+  
+  attr_accessor :selected_source_for_csv_definition, :csv_election_definition, :csv_election_definition_name
+  def process_csv_election_definition
+    if self.csv_election_definition && self.selected_source_for_csv_definition
+      eru = ElectionReportUpload.new(source_type: "CSV Definition", file_name: self.csv_election_definition.original_filename)
+      eru.jurisdiction = self
+      eru.background_source_id = self.selected_source_for_hart
+      eru.election_report = Vedastore::ElectionReport.from_jurisdiction(self)
+      eru.election_report.build_election
+      eru.election_report.election.name = Vedastore::InternationalizedText.new
+      eru.election_report.election.name.language_strings << Vedastore::LanguageString.new(language: 'en', text: self.csv_election_definition_name)
+      eru.save!
+      eru.election_report.election_results_csv = self.csv_election_definition
+    end
+  end
+  
     
   def load_from_csv_file(filename)
     File.open(filename, "r") do |f|

@@ -1,7 +1,7 @@
 Vedastore::Contest.class_eval do
   
   def contest_gp_scope_object
-    election.election_report.gp_units.where(object_id: contest_gp_scope).first
+    Vedastore::ElectionReport.where( election_id: election.id ).first.gp_units.where(object_id: electoral_district_identifier).first
   end
   
   

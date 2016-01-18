@@ -46,6 +46,7 @@ private
       params.require(:jurisdiction).permit(:name, :state, :contact_info, 
       :background_csv, :background_vip, :vedastore_election_report, 
       :selected_source_for_hart, :hart_election_report,
+      :selected_source_for_csv_definition, :csv_election_definition, :csv_election_definition_name,
       :selected_source_for_reporting_unit_kml, :reporting_unit_kml)
     end
   

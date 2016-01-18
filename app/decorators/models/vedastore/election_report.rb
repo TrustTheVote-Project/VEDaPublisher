@@ -99,6 +99,23 @@ Vedastore::ElectionReport.class_eval do
     eru.delay.process!
   end
   
+  def district_from_precinct_ids(id_list)
+    @districts ||= self.get_districts_and_sub_gp_unit_list
+    id_key = id_list.collect(&:to_s).sort
+    district = @districts[id_key]
+    raise id_key.join(", ") + "\n\n" + @districts.keys.collect {|k| k.join(", ") }.join("\n\n") if district.nil?
+    return district
+  end
+  
+  def get_districts_and_sub_gp_unit_list
+    dist_id_keys = {}
+    jurisdiction.districts.each do |d|
+      id_list = d.reporting_units.collect(&:internal_id)
+      id_key = id_list.collect(&:to_s).sort
+      dist_id_keys[id_key] = d
+    end
+    return dist_id_keys
+  end
   
   
   def self.from_jurisdiction(j)

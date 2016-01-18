@@ -1,6 +1,6 @@
 Vedastore::CandidateSelection.class_eval do
   def candidates
-    candidate_selection_candidate_refs.collect(&:candidate)
+    Vedastore::Candidate.where(object_id: ballot_selection_candidate_id_refs.collect(&:candidate_id_ref))
   end
   
   def name
