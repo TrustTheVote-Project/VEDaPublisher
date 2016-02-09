@@ -36,8 +36,8 @@ gem "haml-rails", "~> 0.9"
 gem 'delayed_job_active_record'
 gem "daemons"
 
-gem "vedaspace", "1.1.6.6", :git=>"https://github.com/TrustTheVote-Project/VEDaSpace"
-gem "vedastore", "1.1.2.8", :git=>"https://github.com/TrustTheVote-Project/VEDaStore"
+gem "vedaspace", "1.1.7.0", :git=>"https://github.com/TrustTheVote-Project/VEDaSpace"
+gem "vedastore", "1.1.3.0", :git=>"https://github.com/TrustTheVote-Project/VEDaStore"
 
 gem 'passenger'
 # Use ActiveModel has_secure_password

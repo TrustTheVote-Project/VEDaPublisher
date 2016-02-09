@@ -8,7 +8,7 @@ class ReportingUnit < ActiveRecord::Base
   has_and_belongs_to_many :districts
   
   def object_id
-    "vspub-reporting-unit-#{self.id}"
+    "vspub-reporting-unit-#{self.internal_id}"
   end
   
 end

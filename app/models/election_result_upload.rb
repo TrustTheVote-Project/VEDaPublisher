@@ -208,11 +208,20 @@ class ElectionResultUpload < ActiveRecord::Base
 
       # find the precinct split with this ID
 
-      ps = gp_units["vspub-precinct-split-#{row["Pct_Id"]}"]
+      gp_unit_pct_id = row["Pct_Id"].to_i.to_s
+
+      ps = gp_units["vspub-precinct-split-#{gp_unit_pct_id}"]
+      if ps.nil?
+        ps = gp_units["vspub-reporting-unit-#{gp_unit_pct_id}"] || gp_units["vspub-precinct-#{gp_unit_pct_id}"]
+      end
       if ps.is_a?(Vedastore::ReportingUnit) && row["Reg_voters"].to_i > 0 && ps.voters_registered.to_i != row["Reg_voters"].to_i
         ps.update_attributes(voters_registered: row["Reg_voters"].to_i)
       end
-      ccp = "#{contest_id}-#{candidate_id}-#{row["Pct_Id"]}"
+      ccp = "#{contest_id}-#{candidate_id}-#{gp_unit_pct_id}"
+      
+      if ps.nil?
+        raise gp_unit_pct_id.to_s + "\n\n" + gp_units.keys.join("\n")
+      end
   
       vc_a = Vedastore::VoteCount.new
       vc_e = Vedastore::VoteCount.new
@@ -308,6 +317,7 @@ class ElectionResultUpload < ActiveRecord::Base
     # any newly defined contests should get saved
     new_contests.each do |o_id, contest_precincts|
       contest = contest_precincts[:contest]
+      
       # begin
       #   contest.electoral_district_id = election_report.district_from_precinct_ids(
       #     contest_precincts[:precincts].collect {|pct_id, pct_info| "#{pct_info[:name]}" }
@@ -315,7 +325,11 @@ class ElectionResultUpload < ActiveRecord::Base
       # rescue Exception => e
       #   raise "\n" + "#{contest.id} #{contest.name}" + e.message.to_s
       # end
-      #Also add all precincts and this district to the list of election_report gp_units??
+      
+      
+      # Also add all precincts and this district to the list of election_report gp_units??
+      
+      
       contest.save!
     end
   

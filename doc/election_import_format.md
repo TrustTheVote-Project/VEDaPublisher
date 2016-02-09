@@ -18,6 +18,7 @@ Reg_voters: (Optional) The number of voters in this precinct
 Contest_Id: The internal ID for the contest
 Contest_seq: For ordering contests in a ballot
 Contest_title: (Required when defining an election) The title / name of the contest
+Contest_Type: (Required when defining an election) 'C' for candidate, 'B' for ballot measure, 'P' for straight party
 Contest_party_name: (Optional) TBD
 Selectable_Options: Number of items that can be selected for this contest
 candidate_id: The internal ID for the candidate

@@ -43,10 +43,11 @@
         = bs.name
         -#= bs.totals
         %ul.votes
-          - if false
-            - bs.vote_counts.each do |c|
+          - if true
+            - bs.counts.each do |c|
               %li
-                = "#{c.count} #{c.ballot_type} votes"
+                = "#{c.count} #{c.count_item_type} votes"
                 in
-                = "#{c.report_gp_unit.name} (#{c.report_gp_unit.national_geo_code || c.report_gp_unit.object_id})"
+                -#= c.gp_unit_identifier
+                -#= "#{c.report_gp_unit.name} (#{c.report_gp_unit.national_geo_code || c.report_gp_unit.object_id})"
           

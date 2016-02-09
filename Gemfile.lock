@@ -1,20 +1,20 @@
 GIT
   remote: https://github.com/TrustTheVote-Project/VEDaSpace
-  revision: 81977eab16c6d446a58bdc5d1c54c6ff9644156c
+  revision: 77f523c57e89063910d8408feab755b89ccabf1c
   specs:
-    vedaspace (1.1.6.6)
+    vedaspace (1.1.7.0)
       activemodel (~> 4)
       activesupport (~> 4)
       nokogiri (~> 1.6)
 
 GIT
   remote: https://github.com/TrustTheVote-Project/VEDaStore
-  revision: 1dc2839656f9a782319d3a0d1c7d6e7d50645dd4
+  revision: 2712e16ec89118b58757d82cc7145529599190a6
   specs:
-    vedastore (1.1.2.8)
+    vedastore (1.1.3.0)
       nokogiri (~> 1.6.0)
       rails (~> 4.2.1)
-      vedaspace (~> 1.1.6.6)
+      vedaspace (~> 1.1.7.0)
 
 GIT
   remote: https://github.com/mbklein/equivalent-xml
@@ -243,6 +243,6 @@ DEPENDENCIES
   sqlite3
   turbolinks
   uglifier (>= 1.3.0)
-  vedaspace (= 1.1.6.6)!
-  vedastore (= 1.1.2.8)!
+  vedaspace (= 1.1.7.0)!
+  vedastore (= 1.1.3.0)!
   web-console (~> 2.0)
