@@ -6,11 +6,11 @@ NAME: A (hopefully) Friendly identifier
 DISTRICT_TYPE: congressional, local, locality, other, state-house, state-senate, statewide (from VSSC - for Districts only) 
 OCD_ID: The OCD ID for this place.
 Object Type: 
-ENCLOSING_IDS: List of items that this object is completely within. Each item should be <Object Class>:<ID> OR an OCD ID (?).
+ENCLOSING_IDS: List of items that this object is completely within. Each item should be <Object Class>:<ID> OR an OCD ID (?). If <Object Class>: is ommitted, "District" is assumed
 Shape: Shape string
 
 For example (left off 'shape' for simplicity):
-TYPE,            ID,           NAME,                        DISTRICT_TYPE,           OCD ID,                            ENCLOSING_IDS
+TYPE,            ID,           NAME,                        DISTRICT_TYPE,           OCD_ID,                            ENCLOSING_IDS
 District,        710,          District 10: Congressional,  (vssc)                   ...state:tx/district:con-10,         
 District,        1,            Federal,                     congressional,           country:us,                        
 District,        1414,         District 14: Senate          statewide,               state:tx,                          

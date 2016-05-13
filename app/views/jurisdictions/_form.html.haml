@@ -5,7 +5,7 @@
     .form-group
       = f.inputs do
         = f.input :name
-        = f.input :state, :collection=>State.order(:name).pluck(:name, :id)
+        = f.select :state_id, :collection=>State.order(:name).pluck(:name, :id)
         = f.input :contact_info, input_html: { rows: 4 }
     .form-group
       = f.actions do

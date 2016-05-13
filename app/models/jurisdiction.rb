@@ -168,9 +168,9 @@ class Jurisdiction < ActiveRecord::Base
           row["ENCLOSING_IDS"].split(',').each do |encloser|
             e_type, e_internal_id = encloser.split(':')
             
-            if e_type == "District"
+            if e_type == "District" || (e_internal_id.nil? && !e_type.blank?)
               enclosings[r] ||= []
-              enclosings[r] << e_internal_id
+              enclosings[r] << (e_internal_id || e_type)
             else
               # shouldn't be anything else
             end
@@ -181,14 +181,15 @@ class Jurisdiction < ActiveRecord::Base
         if row["ENCLOSING_IDS"]
           row["ENCLOSING_IDS"].split(',').each do |encloser|
             e_type, e_internal_id = encloser.split(':')
-            if e_type == "District"
-              internal_objects[row["TYPE"].downcase] ||= {}
-              internal_objects[row["TYPE"].downcase][row["ID"]] ||= []
-              internal_objects[row["TYPE"].downcase][row["ID"]] << "district:#{e_internal_id}"
-            elsif e_type == "Precinct"
+            if e_type == "Precinct"
               internal_objects["precinct"] ||= {}
               internal_objects["precinct"][e_internal_id] ||= []
               internal_objects["precinct"][e_internal_id] << "#{row["TYPE"].downcase}:#{row["ID"]}"
+            elsif e_type == "District" || e_internal_id.nil?
+              internal_objects[row["TYPE"].downcase] ||= {}
+              internal_objects[row["TYPE"].downcase][row["ID"]] ||= []
+              internal_objects[row["TYPE"].downcase][row["ID"]] << ("district:#{e_internal_id || e_type}")
+            else
             end
           end
         end        
@@ -215,7 +216,7 @@ class Jurisdiction < ActiveRecord::Base
         if districts[d_id]
           ru.districts << districts[d_id]
         else
-          raise d_id.to_s
+          raise "'#{d_id.to_s}'" + districts.keys.to_s
         end
       end
     end
