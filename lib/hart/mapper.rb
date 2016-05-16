@@ -1,6 +1,7 @@
 module Hart
   class Mapper
     
+    # headers: travis is false, Orange county is true
     DEFAULTS={:format=>:tdf, :headers=>false}
 
     def self.map(file_base)    
@@ -22,14 +23,20 @@ module Hart
       end
 
       DMap::File.define("CANDIDATE.txt", defaults) do |df|
-        df.candidate({:contest_id=>[:contest, :id]}, :id, :order, :unknown?, :name, :unknown?, {:party_id=>[:party, :id]})
+        df.candidate({:contest_id=>[:contest, :id]}, :id, :order, :party_abbr, :name, :unknown?, {:party_id=>[:party, :id]})
       end
     
-    
+      # Travis with precinct splits
+      # DMap::File.define("PRECINCT.txt", defaults) do |df|
+      #     df.precinct_split :id, :order, {:precinct_id=>[:precinct, :id]}, :precinct_split_type, :unknown?
+      #     df.precinct(:NA, :NA, :id, :NA, :NA)
+      # end
+
+      # Orange County
       DMap::File.define("PRECINCT.txt", defaults) do |df|
-          df.precinct_split :id, :order, {:precinct_id=>[:precinct, :id]}, :precinct_split_type, :unknown?
-          df.precinct(:NA, :NA, :id, :NA, :NA)
+        df.precinct(:id, :order, :name, :split_name, :voters, :party_code, :rotation_index)
       end
+
       
       DMap::File.define("DISTRICT.txt", defaults) do |df|
         df.district :id, :name

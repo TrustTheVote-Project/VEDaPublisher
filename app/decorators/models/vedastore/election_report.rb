@@ -92,6 +92,19 @@ Vedastore::ElectionReport.class_eval do
     Hart::Parser.parse(dest, self)
   end
   
+  def to_xml
+    self.to_xml_node.to_xml
+  end
+  
+  def write_file
+    fname = "election_report_#{id}.xml"
+    File.open(fname, "w+") do |f|
+      f.write self.to_xml
+    end
+    puts "wrote #{fname}"
+  end
+    
+  
   attr_reader :election_results_csv
   
   def election_results_csv=(file)

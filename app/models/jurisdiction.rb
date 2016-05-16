@@ -95,7 +95,7 @@ class Jurisdiction < ActiveRecord::Base
       FileUtils.mkdir_p(dest)
       Zip::File.open(zip_file.path) do |zip_file|
         zip_file.each do |entry|
-          puts "Extracting #{entry.name}"
+          Rails.logger.info "Extracting #{entry.name}"
           entry.extract(dest.join(entry.name))
         end
       end

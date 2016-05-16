@@ -11,7 +11,7 @@ class ShapeSource < ActiveRecord::Base
       pct = background_source.reporting_units.find_by_internal_id(pct_id)
       if pct.nil?
         next
-        #raise pct_id.to_s
+        raise pct_id.to_s
         
       end
       self.shapes.build(ocd_object: pct.ocd_object, internal_id: pct_id, shape_data: shape_data, shape_type: "KML")

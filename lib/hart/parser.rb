@@ -61,7 +61,7 @@ module Hart
         district.name = d.attributes[:name]
         source_district = source_districts[d.id] #source.districts.where(internal_id: d.id).first
         if source_district.nil?
-          raise "District #{d} not found in background data from source #{source}!"
+          raise "District #{d.inspect} not found in background data from source #{source}!"
         end
         
         district.object_id = source_district.object_id
@@ -115,7 +115,7 @@ module Hart
         
         source_precinct = source_precincts[p.id] #source.reporting_units.where(:internal_id=>p.id).first
         if source_precinct.nil?
-          raise "Precinct #{p} not found in source #{source}"
+          raise "Precinct #{p.inspect} not found in source #{source}"
         end
 
         precinct.object_id = source_precinct.object_id
@@ -146,39 +146,42 @@ module Hart
       
       gp_sub_unit_refs = []
       precinct_splits = {}
-      DMap::ModelRegister.classes[:precinct_split].all.values.each do |ps|
-        precinct_split = Vedastore::ReportingUnit.new
-        # precinct split has no background source equivalent??
+      if DMap::ModelRegister.classes[:precinct_split]
+        DMap::ModelRegister.classes[:precinct_split].all.values.each do |ps|
+          precinct_split = Vedastore::ReportingUnit.new
+          # precinct split has no background source equivalent??
 
-        ocd_id = Vedastore::ExternalIdentifier.new 
-        ocd_id.identifier_type = Vedaspace::Enum::IdentifierType.ocd_id
-        ocd_id.value = "vspub-precinct-split-#{ps.id}"
-        precinct_split.external_identifier_collection = Vedastore::ExternalIdentifierCollection.new
-        precinct_split.external_identifier_collection.external_identifiers << ocd_id
+          ocd_id = Vedastore::ExternalIdentifier.new 
+          ocd_id.identifier_type = Vedaspace::Enum::IdentifierType.ocd_id
+          #ocd_id.value = "vspub-precinct-split-#{ps.id}"
+          ocd_id.value = "vspub-reporting-unit-#{ps.id}"
+          precinct_split.external_identifier_collection = Vedastore::ExternalIdentifierCollection.new
+          precinct_split.external_identifier_collection.external_identifiers << ocd_id
         
-        precinct = report_gp_units[ps.precinct_id] #report.gp_units.where(local_geo_code: ps.precinct_id, type: 'Vssc::ReportingUnit').first
-        if precinct.nil?
-          raise "Precinct #{ps.precinct_id} not found in source report"
+          precinct = report_gp_units[ps.precinct_id] #report.gp_units.where(local_geo_code: ps.precinct_id, type: 'Vssc::ReportingUnit').first
+          if precinct.nil?
+            raise "Precinct #{ps.precinct_id} not found in source report"
+          end
+        
+          gp_sub_unit_ref = Vedastore::GpUnitComposingGpUnitIdRef.new(
+            composing_gp_unit_id_ref:  ocd_id.value, 
+            gp_unit_id: precinct.id)
+          gp_sub_unit_refs << gp_sub_unit_ref
+        
+          precinct_split.election_report_id = report.id
+        
+          #precinct_split.object_id = "vspub-precinct-split-#{ps.id}"
+          precinct_split.object_id = "vspub-reporting-unit-#{ps.id}"
+        
+          precinct_splits[precinct_split.object_id] = precinct_split
         end
-        
-        gp_sub_unit_ref = Vedastore::GpUnitComposingGpUnitIdRef.new(
-          composing_gp_unit_id_ref:  ocd_id.value, 
-          gp_unit_id: precinct.id)
-        gp_sub_unit_refs << gp_sub_unit_ref
-        
-        precinct_split.election_report_id = report.id
-        
-        precinct_split.object_id = "vspub-precinct-split-#{ps.id}"
-        
-        precinct_splits[precinct_split.object_id] = precinct_split
+
+        precinct_splits.values.each {|ps| ps.save! }
+        # Vedastore::GpUnit.import(precinct_splits.values)
+        # precinct_splits = Vedastore::GpUnit.where(object_id: precinct_splits.keys)
+
+        Vedastore::GpUnitComposingGpUnitIdRef.import(gp_sub_unit_refs)
       end
-
-      precinct_splits.values.each {|ps| ps.save! }
-      # Vedastore::GpUnit.import(precinct_splits.values)
-      # precinct_splits = Vedastore::GpUnit.where(object_id: precinct_splits.keys)
-
-      Vedastore::GpUnitComposingGpUnitIdRef.import(gp_sub_unit_refs)
-      
       
       report_districts = report.gp_units.where(type: "Vedastore::ReportingUnit", is_districted: true).inject({}) do |h, d|
         local_code = d.external_identifier_collection.external_identifiers.where(
@@ -188,12 +191,13 @@ module Hart
         h
       end
       district_sub_unit_refs = []
-
+      
       DMap::ModelRegister.classes[:district_precinct_split].all.values.each do |d_ps|
         district = report_districts[d_ps.district_id] #report.gp_units.where(local_geo_code: d_ps.district_id, type: 'Vssc::District').first
         
         district_sub_unit_refs << Vedastore::GpUnitComposingGpUnitIdRef.new(
-          composing_gp_unit_id_ref:  "vspub-precinct-split-#{d_ps.precinct_split_id}", 
+          # composing_gp_unit_id_ref:  "vspub-precinct-split-#{d_ps.precinct_split_id}", 
+          composing_gp_unit_id_ref:  "vspub-reporting-unit-#{d_ps.precinct_split_id}", 
           gp_unit_id: district.id)
       end
       Vedastore::GpUnitComposingGpUnitIdRef.import(district_sub_unit_refs)
