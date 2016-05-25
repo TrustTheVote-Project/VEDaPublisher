@@ -1,5 +1,6 @@
 source 'https://rubygems.org'
 
+gem 'libxml-ruby'
 gem 'nokogiri'
 gem 'rubyzip', '>= 1.0.0' 
 
@@ -7,7 +8,7 @@ gem 'rubyzip', '>= 1.0.0'
 gem 'rails', '4.2.1'
 # Use sqlite3 as the database for Active Record
 gem 'sqlite3'
-gem 'mysql2'
+gem 'mysql2', '0.3.18'
 gem 'activerecord-import'
 
 # Use SCSS for stylesheets
@@ -36,8 +37,8 @@ gem "haml-rails", "~> 0.9"
 gem 'delayed_job_active_record'
 gem "daemons"
 
-gem "vedaspace", "1.1.7.0", :git=>"https://github.com/TrustTheVote-Project/VEDaSpace"
-gem "vedastore", "1.1.3.0", :git=>"https://github.com/TrustTheVote-Project/VEDaStore"
+gem "vedaspace", "1.3.7", :git=>"https://github.com/TrustTheVote-Project/VEDaSpace"
+gem "vedastore", "1.3", :git=>"https://github.com/TrustTheVote-Project/VEDaStore"
 
 gem 'passenger'
 # Use ActiveModel has_secure_password
@@ -60,7 +61,8 @@ group :development, :test do
   # Spring speeds up development by keeping your application running in the background. Read more: https://github.com/rails/spring
   # gem 'spring'
   
-  gem 'equivalent-xml', "~> 0.5.1", :git => "https://github.com/mbklein/equivalent-xml"
+  #gem 'equivalent-xml', "~> 0.5.1", :git => "https://github.com/mbklein/equivalent-xml"
+  gem 'equivalent-xml', "~> 0.6.0", :git => "https://github.com/mbklein/equivalent-xml"
   gem 'rspec-rails', '~> 3.0'
 end
 

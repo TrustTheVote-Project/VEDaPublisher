@@ -208,7 +208,7 @@ class ElectionResultUpload < ActiveRecord::Base
 
       # find the precinct split with this ID
 
-      gp_unit_pct_id = row["Pct_Id"].to_i.to_s
+      gp_unit_pct_id = row["Pct_Id"].to_s
 
       ps = gp_units["vspub-precinct-split-#{gp_unit_pct_id}"]
       if ps.nil?

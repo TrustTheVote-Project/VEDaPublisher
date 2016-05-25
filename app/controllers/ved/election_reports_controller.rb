@@ -3,7 +3,7 @@ class Ved::ElectionReportsController < ApplicationController
   def show
     @er = Vedastore::ElectionReport.find_with_eager_load(params[:id])
     respond_to do |f|
-      f.xml { render text: @er.to_xml_node.to_xml }
+      f.xml { render text: @er.to_xml_node.to_s }
     end
   end
   

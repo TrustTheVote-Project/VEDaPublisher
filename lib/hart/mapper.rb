@@ -27,15 +27,15 @@ module Hart
       end
     
       # Travis with precinct splits
-      # DMap::File.define("PRECINCT.txt", defaults) do |df|
-      #     df.precinct_split :id, :order, {:precinct_id=>[:precinct, :id]}, :precinct_split_type, :unknown?
-      #     df.precinct(:NA, :NA, :id, :NA, :NA)
-      # end
+      DMap::File.define("PRECINCT.txt", defaults) do |df|
+          df.precinct_split :id, :order, {:precinct_id=>[:precinct, :id]}, :precinct_split_type, :unknown?
+          df.precinct(:NA, :NA, :id, :NA, :NA)
+      end
 
       # Orange County
-      DMap::File.define("PRECINCT.txt", defaults) do |df|
-        df.precinct(:id, :order, :name, :split_name, :voters, :party_code, :rotation_index)
-      end
+      # DMap::File.define("PRECINCT.txt", defaults) do |df|
+      #   df.precinct(:id, :order, :name, :split_name, :voters, :party_code, :rotation_index)
+      # end
 
       
       DMap::File.define("DISTRICT.txt", defaults) do |df|

@@ -4,6 +4,7 @@ Vedastore::ElectionReport.class_eval do
     e = self.where(id: id).includes([
       {:gp_units=>[
           :gp_unit_composing_gp_unit_id_refs,
+          :external_identifier_collection,
           #:contacts,
           #:gp_sub_units, 
           #:gp_sub_unit_refs, 
@@ -14,21 +15,24 @@ Vedastore::ElectionReport.class_eval do
           #{:ocd_object=>[:shapes]}
         ]},
       #:ballot_selections,
-      :parties,
-      :people,
-      :offices,
+      {:parties=>[{:name=>[:language_strings]}]},
+      {:people=>[{:full_name=>[:language_strings]}, {:profession=>[:language_strings]}, {:title=>[:language_strings]}]},
+      {:offices=>[{:name=>[:language_strings]}]},
       {:people=>[
         {:contacts=>[:reporting_units]}
       ]},
-      :offices,
       {:election=>[
+          {:name=>[:language_strings]},
           {:ballot_styles=>[:ordered_contests]},
-          {:candidates=>[]},
+          {:candidates=>[:external_identifier_collection, {:ballot_name=>[:language_strings]}]},
           {:contests=>[
             {:ballot_selections=>[
                 #:counts,
                 #{:candidate_selection_candidate_refs=>[:candidate]}
               ]},
+            {:ballot_title=>[:language_strings]},
+            {:ballot_sub_title=>[:language_strings]},
+            :external_identifier_collection,
             :summary_counts,
             #{:contest_total_counts=>[:total_count]},
             #:total_counts_by_gp_unit
@@ -37,46 +41,82 @@ Vedastore::ElectionReport.class_eval do
       }
     ]).first
     
+    Rails.logger.info "Loaded Election Report"
+    
     #load all counts
     ballot_selection_ids = []
     e.election.tap do |election|
       election.contests.each do |contest|
-        puts "Loading contest #{contest.inspect} ballot selections"
-        Rails.logger.debug("Loading contest #{contest.inspect} ballot selections")
+        Rails.logger.info "Loading contest #{contest.inspect} ballot selections"
         ballot_selection_ids << contest.ballot_selections.collect(&:id)
+        
+        
+        
       end
     end
-
-    # puts ballot_selection_ids.count
-    #
     
+    
+    ballot_selection_ids = ballot_selection_ids.flatten
+
+
     batch_size = 10000
     
     count = Vedastore::VoteCount.where(:countable_id=>ballot_selection_ids, :countable_type=>Vedastore::BallotSelection).count
-    puts count
-    Rails.logger.debug("#{count} Counts")
+    Rails.logger.info("#{count} Counts")
     
     ballot_selection_counts = {}
     
     Vedastore::VoteCount.where(:countable_id=>ballot_selection_ids, :countable_type=>Vedastore::BallotSelection).find_in_batches(batch_size: batch_size).with_index do |group, batch|
-      puts "Loading #{batch * batch_size} of #{count}"
-      Rails.logger.debug("Loading #{batch * batch_size} of #{count}")
+      Rails.logger.info("Loading #{batch * batch_size} of #{count}")
       group.each do |vc|
         ballot_selection_counts[vc.countable_id] ||= []
         ballot_selection_counts[vc.countable_id] << vc        
       end
     end
+    
+    ballot_selection_candidate_id_refs = {}
+    Vedastore::BallotSelectionCandidateIdRef.where(ballot_selection_id: ballot_selection_ids).find_in_batches(batch_size: batch_size).with_index do |group, batch|
+      Rails.logger.info("Loading #{batch * batch_size} of #{count}")
+      group.each do |cid_ref|
+        ballot_selection_candidate_id_refs[cid_ref.ballot_selection_id] ||= []
+        ballot_selection_candidate_id_refs[cid_ref.ballot_selection_id] << cid_ref        
+      end
+      
+    end
+    #:ballot_selection_candidate_id_refs,
+    
+    ballot_selection_endorsement_party_id_refs = {}
+    Vedastore::BallotSelectionCandidateIdRef.where(ballot_selection_id: ballot_selection_ids).find_in_batches(batch_size: batch_size).with_index do |group, batch|
+      Rails.logger.info("Loading #{batch * batch_size} of #{count}")
+      group.each do |cid_ref|
+        ballot_selection_candidate_id_refs[cid_ref.ballot_selection_id] ||= []
+        ballot_selection_candidate_id_refs[cid_ref.ballot_selection_id] << cid_ref        
+      end
+      
+    end
+    #:ballot_selection_endorsement_party_id_refs
+    
+    
 
     e.election.tap do |election|
       election.contests.each do |contest|
-        puts "Substituting contest #{contest.inspect} ballot selections"
-        Rails.logger.debug("Substituting contest #{contest.inspect} ballot selections")
+        Rails.logger.info("Substituting contest #{contest.inspect} ballot selections")
         contest.ballot_selections.each do |bs|
-          records = ballot_selection_counts[bs.id] || []
+          count_records = ballot_selection_counts[bs.id] || []
           association = bs.association(:counts)
           association.loaded!
-          association.target.concat(records.to_a)
-          records.each { |record| association.set_inverse_instance(record) }
+          association.target.concat(count_records.to_a)
+          count_records.each { |record| association.set_inverse_instance(record) }
+
+          # Build ballot selection associations
+          cid_ref_records = ballot_selection_candidate_id_refs[bs.id] || []
+          if cid_ref_records.any?
+            association = bs.association(:ballot_selection_candidate_id_refs)
+            association.loaded!
+            association.target.concat(cid_ref_records.to_a)
+            cid_ref_records.each { |record| association.set_inverse_instance(record) }
+          end
+          
         end
       end
     end
@@ -93,13 +133,14 @@ Vedastore::ElectionReport.class_eval do
   end
   
   def to_xml
-    self.to_xml_node.to_xml
+    self.to_xml_node #.to_xml
   end
   
   def write_file
+    loaded_report = self.class.find_with_eager_load(self.id)
     fname = "election_report_#{id}.xml"
     File.open(fname, "w+") do |f|
-      f.write self.to_xml
+      f.write loaded_report.to_xml
     end
     puts "wrote #{fname}"
   end
